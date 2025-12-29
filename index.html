@@ -51,7 +51,7 @@
                 <h3 class="text-lg font-bold">เชื่อมต่อข้อมูลล้มเหลว</h3>
             </div>
             <p class="text-sm text-slate-600 mb-4" id="error-detail">ไม่สามารถดึงข้อมูลจาก Google Sheet ได้</p>
-            <div class="bg-slate-50 p-3 rounded text-xs text-slate-500 font-mono mb-4 break-all" id="error-tech">
+            <div class="bg-slate-50 p-3 rounded text-xs text-slate-500 font-mono mb-4 break-all max-h-32 overflow-y-auto custom-scrollbar" id="error-tech">
                 Error Details...
             </div>
             <div class="flex gap-2 justify-end">
@@ -113,7 +113,7 @@
             </div>
             
              <div class="text-center text-xs text-slate-400">
-                * หากคลิกแล้วโหลดไม่ขึ้น กรุณาตรวจสอบว่าชื่อ Tab ใน Google Sheet ตรงกับชื่อย่อเดือน (เช่น "ม.ค.", "ก.พ.")
+                * หากคลิกแล้วโหลดไม่ขึ้น กรุณาตรวจสอบว่าชื่อ Tab ใน Google Sheet ตรงกับชื่อเดือน (มกราคม, ก.พ., มี.ค.)
             </div>
         </div>
 
@@ -252,15 +252,21 @@
 
     <!-- Logic -->
     <script>
-        // CONFIG
+        // CONFIG: Updated to match actual tab names in your Sheet
         const SHEET_ID = '16q3EZt48isOrnvh6s0sET5WQtAPB_zsUXZ2TTUODT5I';
         const MONTHS = [
-            { name: "มกราคม", full: "มกราคม" }, { name: "ก.พ.", full: "กุมภาพันธ์" }, 
-            { name: "มี.ค.", full: "มีนาคม" }, { name: "เม.ย.", full: "เมษายน" }, 
-            { name: "พ.ค.", full: "พฤษภาคม" }, { name: "มิ.ย.", full: "มิถุนายน" }, 
-            { name: "ก.ค.", full: "กรกฎาคม" }, { name: "ส.ค.", full: "สิงหาคม" }, 
-            { name: "ก.ย.", full: "กันยายน" }, { name: "ต.ค.", full: "ตุลาคม" }, 
-            { name: "พ.ย.", full: "พฤศจิกายน" }, { name: "ธ.ค.", full: "ธันวาคม" }
+            { name: "มกราคม", full: "มกราคม" }, // Fixed: Jan is Full Name
+            { name: "ก.พ.", full: "กุมภาพันธ์" }, 
+            { name: "มี.ค.", full: "มีนาคม" }, 
+            { name: "เม.ย.", full: "เมษายน" }, 
+            { name: "พ.ค.", full: "พฤษภาคม" }, 
+            { name: "มิ.ย.", full: "มิถุนายน" }, 
+            { name: "ก.ค.", full: "กรกฎาคม" }, 
+            { name: "ส.ค.", full: "สิงหาคม" }, 
+            { name: "ก.ย.", full: "กันยายน" }, 
+            { name: "ต.ค.", full: "ตุลาคม" }, 
+            { name: "พ.ย.", full: "พฤศจิกายน" }, 
+            { name: "ธ.ค.", full: "ธันวาคม" }
         ];
 
         // Global State
@@ -270,6 +276,16 @@
         // Utils
         const formatCurrency = (num) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num);
         const formatNum = (num) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(num);
+        
+        // Safety Helper to prevent null errors
+        function safeSetText(id, text) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.innerText = text;
+            } else {
+                console.warn(`Element with id '${id}' not found.`);
+            }
+        }
 
         function initYearView() {
             const grid = document.getElementById('month-grid-container');
@@ -310,8 +326,8 @@
             document.getElementById('btn-back').classList.remove('hidden');
             
             // Set Header Info
-            document.getElementById('current-month-badge').innerText = m.name;
-            document.getElementById('current-month-title').innerText = `${m.full} 2569`;
+            safeSetText('current-month-badge', m.name.substring(0, 4)); // Show short badge
+            safeSetText('current-month-title', `${m.full} 2569`);
 
             // Fetch Data
             await fetchData(m.name);
@@ -328,18 +344,14 @@
         async function fetchData(sheetName) {
             const loading = document.getElementById('loading');
             const errorModal = document.getElementById('error-modal');
-            const errorDetail = document.getElementById('error-detail');
-            const errorTech = document.getElementById('error-tech');
             
             loading.classList.remove('hidden');
             errorModal.classList.add('hidden');
             
             try {
                 // FORCE REAL-TIME: Use Google Visualization API Query
-                // Note: The sheet must be publicly readable for this to work without OAuth
-                // Use cache busting parameter
                 const cacheBuster = new Date().getTime();
-                const query = `SELECT A, B, C, D`; // Assuming structure: A=Name, B=Branch, C=Target, D=Actual
+                const query = `SELECT A, B, C, D`; 
                 const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&_=${cacheBuster}`;
 
                 const response = await fetch(url);
@@ -347,12 +359,12 @@
                 
                 const text = await response.text();
                 
-                // Parse JSON from GVIZ response: /*O_o*/ google.visualization.Query.setResponse({...});
+                // Parse JSON from GVIZ response
                 const jsonStart = text.indexOf("{");
                 const jsonEnd = text.lastIndexOf("}") + 1;
                 
                 if (jsonStart === -1 || jsonEnd === -1) {
-                    throw new Error("Invalid Data Format: ไม่พบ JSON ในการตอบกลับ (ชื่อ Tab อาจไม่ถูกต้อง)");
+                    throw new Error("Invalid Data Format: ไม่พบ JSON (ตรวจสอบชื่อ Tab: " + sheetName + ")");
                 }
 
                 const jsonString = text.substring(jsonStart, jsonEnd);
@@ -366,17 +378,17 @@
                 
                 // Update timestamp
                 const now = new Date();
-                document.getElementById('last-updated').innerText = now.toLocaleTimeString('th-TH');
+                safeSetText('last-updated', now.toLocaleTimeString('th-TH'));
 
             } catch (error) {
                 console.error("Fetch failed:", error);
                 
                 // Show Error Modal
-                errorDetail.innerText = `ไม่สามารถดึงข้อมูลของเดือน "${sheetName}" ได้`;
-                errorTech.innerText = `${error.message}\n\nคำแนะนำ: ตรวจสอบว่าชื่อ Tab ใน Google Sheet คือ "${sheetName}" หรือไม่ และ Sheet เปิดเป็น Public หรือยัง`;
+                safeSetText('error-detail', `ไม่สามารถดึงข้อมูลของเดือน "${sheetName}" ได้`);
+                safeSetText('error-tech', `${error.message}\n\nTechnical:\nChecked Tab Name: '${sheetName}'\nSheet ID: ${SHEET_ID}`);
                 errorModal.classList.remove('hidden');
                 
-                // Clear UI
+                // Clear UI safely
                 resetUI();
                 
             } finally {
@@ -392,21 +404,19 @@
             let activeCount = 0;
 
             rows.forEach((row) => {
-                // GVIZ returns null for empty cells, ensure we handle it
                 if (!row.c || !row.c[0]) return;
                 
                 const name = row.c[0]?.v ? String(row.c[0].v) : "";
                 const branch = row.c[1]?.v ? String(row.c[1].v) : "-";
-                // Try to parse numbers, handle potential string formatting (remove commas)
+                
                 let targetStr = row.c[2]?.v ? String(row.c[2].v).replace(/,/g, '') : "0";
                 let actualStr = row.c[3]?.v ? String(row.c[3].v).replace(/,/g, '') : "0";
                 
                 const target = parseFloat(targetStr) || 0;
                 const actual = parseFloat(actualStr) || 0;
 
-                // Simple filter to skip header rows (if "Target" contains text)
                 if (isNaN(target) && isNaN(actual)) return;
-                if (name.includes("รวม") || name.includes("Total") || name.includes("ชื่อฝ่าย")) return;
+                if (name.includes("รวม") || name.includes("Total") || name.includes("ชื่อฝ่าย") || name === "Name") return;
 
                 if (actual > 0) activeCount++;
                 totalTarget += target;
@@ -420,41 +430,46 @@
 
         function updateUI(teams, totalTarget, totalActual, activeCount) {
             // 1. KPI Cards
-            document.getElementById('kpi-fyp').innerText = formatNum(totalActual);
-            document.getElementById('kpi-target').innerText = formatNum(totalTarget);
-            document.getElementById('kpi-active-units').innerText = `${activeCount} / ${teams.length}`;
+            safeSetText('kpi-fyp', formatNum(totalActual));
+            safeSetText('kpi-target', formatNum(totalTarget));
+            safeSetText('kpi-active-units', `${activeCount} / ${teams.length}`);
             
             const ratio = teams.length > 0 ? ((activeCount/teams.length)*100).toFixed(0) : 0;
-            document.getElementById('kpi-active-desc').innerText = `Active Ratio ${ratio}%`;
+            safeSetText('kpi-active-desc', `Active Ratio ${ratio}%`);
 
             const percent = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
             const percentEl = document.getElementById('kpi-percent');
             const progressBar = document.getElementById('progress-bar');
 
-            percentEl.innerText = percent.toFixed(1) + '%';
+            if(percentEl) {
+                percentEl.innerText = percent.toFixed(1) + '%';
+                let colorClass = "text-red-600";
+                let bgClass = "bg-red-500";
+                
+                if (percent >= 100) { colorClass = "text-green-600"; bgClass = "bg-green-500"; }
+                else if (percent >= 80) { colorClass = "text-yellow-600"; bgClass = "bg-yellow-500"; }
+                
+                percentEl.className = `text-2xl font-bold mt-2 ${colorClass}`;
+            }
             
-            let colorClass = "text-red-600";
-            let bgClass = "bg-red-500";
-            
-            if (percent >= 100) { colorClass = "text-green-600"; bgClass = "bg-green-500"; }
-            else if (percent >= 80) { colorClass = "text-yellow-600"; bgClass = "bg-yellow-500"; }
-            
-            percentEl.className = `text-2xl font-bold mt-2 ${colorClass}`;
-            progressBar.className = `${bgClass} h-2 rounded-full transition-all duration-500`;
-            progressBar.style.width = Math.min(percent, 100) + '%';
+            if(progressBar) {
+                let bgClass = percent >= 100 ? "bg-green-500" : (percent >= 80 ? "bg-yellow-500" : "bg-red-500");
+                progressBar.className = `${bgClass} h-2 rounded-full transition-all duration-500`;
+                progressBar.style.width = Math.min(percent, 100) + '%';
+            }
 
             // Top Team
             if (teams.length > 0) {
-                document.getElementById('kpi-top-team').innerText = teams[0].name;
-                document.getElementById('kpi-top-val').innerText = formatCurrency(teams[0].actual);
+                safeSetText('kpi-top-team', teams[0].name);
+                safeSetText('kpi-top-val', formatCurrency(teams[0].actual));
             } else {
-                document.getElementById('kpi-top-team').innerText = "-";
-                document.getElementById('kpi-top-val').innerText = "-";
+                safeSetText('kpi-top-team', "-");
+                safeSetText('kpi-top-val', "-");
             }
 
             // 2. Summary & Chart
             updateSummary(percent, totalTarget, totalActual);
-            renderMonthlyChart(teams.slice(0, 5)); // Top 5 chart
+            renderMonthlyChart(teams.slice(0, 5));
 
             // 3. Table
             renderTable(teams);
@@ -466,33 +481,49 @@
             const summaryDesc = document.getElementById('summary-desc');
             const summaryCard = document.getElementById('summary-card');
 
+            if (!summaryCard) return;
+
             if (percent >= 100) {
                 summaryCard.className = "mb-6 p-4 bg-green-50 border border-green-100 rounded-xl";
-                summaryTitle.innerText = "ยอดเยี่ยม (ทะลุเป้า)";
-                summaryTitle.className = "font-bold text-green-800";
-                summaryIcon.className = "w-5 h-5 text-green-600";
-                summaryIcon.setAttribute('data-lucide', 'trophy');
-                summaryDesc.innerText = `ผลงานโดยรวมยอดเยี่ยม ทะลุเป้าหมายไปแล้ว ${formatNum(totalActual - totalTarget)} บาท`;
+                if(summaryTitle) {
+                    summaryTitle.innerText = "ยอดเยี่ยม (ทะลุเป้า)";
+                    summaryTitle.className = "font-bold text-green-800";
+                }
+                if(summaryIcon) {
+                    summaryIcon.className = "w-5 h-5 text-green-600";
+                    summaryIcon.setAttribute('data-lucide', 'trophy');
+                }
+                if(summaryDesc) summaryDesc.innerText = `ผลงานโดยรวมยอดเยี่ยม ทะลุเป้าหมายไปแล้ว ${formatNum(totalActual - totalTarget)} บาท`;
             } else if (percent >= 80) {
                 summaryCard.className = "mb-6 p-4 bg-yellow-50 border border-yellow-100 rounded-xl";
-                summaryTitle.innerText = "ใกล้เคียงเป้าหมาย";
-                summaryTitle.className = "font-bold text-yellow-800";
-                summaryIcon.className = "w-5 h-5 text-yellow-600";
-                summaryIcon.setAttribute('data-lucide', 'trending-up');
-                summaryDesc.innerText = `ขาดอีก ${formatNum(totalTarget - totalActual)} บาท จะถึงเป้าหมาย เร่งติดตามทีมที่มีศักยภาพ`;
+                if(summaryTitle) {
+                    summaryTitle.innerText = "ใกล้เคียงเป้าหมาย";
+                    summaryTitle.className = "font-bold text-yellow-800";
+                }
+                if(summaryIcon) {
+                    summaryIcon.className = "w-5 h-5 text-yellow-600";
+                    summaryIcon.setAttribute('data-lucide', 'trending-up');
+                }
+                if(summaryDesc) summaryDesc.innerText = `ขาดอีก ${formatNum(totalTarget - totalActual)} บาท จะถึงเป้าหมาย เร่งติดตามทีมที่มีศักยภาพ`;
             } else {
                 summaryCard.className = "mb-6 p-4 bg-red-50 border border-red-100 rounded-xl";
-                summaryTitle.innerText = "ต่ำกว่าเกณฑ์";
-                summaryTitle.className = "font-bold text-red-800";
-                summaryIcon.className = "w-5 h-5 text-red-600";
-                summaryIcon.setAttribute('data-lucide', 'alert-circle');
-                summaryDesc.innerText = `ผลงานรวมยังห่างจากเป้า ${formatNum(totalTarget - totalActual)} บาท ต้องปรับกลยุทธ์เร่งด่วน`;
+                if(summaryTitle) {
+                    summaryTitle.innerText = "ต่ำกว่าเกณฑ์";
+                    summaryTitle.className = "font-bold text-red-800";
+                }
+                if(summaryIcon) {
+                    summaryIcon.className = "w-5 h-5 text-red-600";
+                    summaryIcon.setAttribute('data-lucide', 'alert-circle');
+                }
+                if(summaryDesc) summaryDesc.innerText = `ผลงานรวมยังห่างจากเป้า ${formatNum(totalTarget - totalActual)} บาท ต้องปรับกลยุทธ์เร่งด่วน`;
             }
             lucide.createIcons();
         }
 
         function renderMonthlyChart(teams) {
             const container = document.getElementById('monthly-chart-container');
+            if(!container) return;
+
             let html = '';
             
             if (teams.length === 0) {
@@ -503,8 +534,8 @@
             const maxVal = Math.max(...teams.map(t => Math.max(t.target, t.actual)), 1);
 
             teams.forEach(team => {
-                const hTarget = (team.target / maxVal) * 100;
-                const hActual = (team.actual / maxVal) * 100;
+                const hTarget = maxVal > 0 ? (team.target / maxVal) * 100 : 0;
+                const hActual = maxVal > 0 ? (team.actual / maxVal) * 100 : 0;
                 const color = team.actual >= team.target ? 'bg-green-500' : 'bg-blue-500';
 
                 html += `
@@ -523,6 +554,8 @@
 
         function renderTable(teams) {
             const tbody = document.getElementById('table-body');
+            if(!tbody) return;
+
             let tableHtml = '';
             
             teams.forEach((team, index) => {
@@ -551,12 +584,22 @@
         }
         
         function resetUI() {
-            document.getElementById('kpi-fyp').innerText = "-";
-            document.getElementById('kpi-percent').innerText = "-";
-            document.getElementById('kpi-target').innerText = "-";
-            document.getElementById('progress-bar').style.width = "0%";
-            document.getElementById('table-body').innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">...</td></tr>';
-            document.getElementById('monthly-chart-container').innerHTML = '';
+            safeSetText('kpi-fyp', "-");
+            safeSetText('kpi-percent', "-");
+            safeSetText('kpi-target', "-");
+            safeSetText('kpi-active-units', "-");
+            safeSetText('kpi-active-desc', "-");
+            safeSetText('kpi-top-team', "-");
+            safeSetText('kpi-top-val', "-");
+
+            const progressBar = document.getElementById('progress-bar');
+            if(progressBar) progressBar.style.width = "0%";
+            
+            const tbody = document.getElementById('table-body');
+            if(tbody) tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">...</td></tr>';
+            
+            const chart = document.getElementById('monthly-chart-container');
+            if(chart) chart.innerHTML = '';
         }
 
         // Init
@@ -567,5 +610,4 @@
 
     </script>
 </body>
-
 </html>
