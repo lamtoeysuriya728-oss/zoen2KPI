@@ -15,14 +15,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@400;600;800&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; }
         
         /* Gladiator Theme Colors */
         :root {
-            --glad-red: #b91c1c;
+            --glad-red: #991b1b;
             --glad-dark-red: #7f1d1d;
             --glad-gold: #d97706;
-            --glad-dark: #1f2937;
+            --glad-gold-light: #fbbf24;
+            --glad-dark: #111827;
         }
 
         .text-gold { color: var(--glad-gold); }
@@ -33,56 +34,83 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #e2e8f0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
         /* Table Design */
-        .rank-table th { background: #1f2937; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.05em; }
-        .rank-table tr:nth-child(even) { background-color: #f9fafb; }
-        .rank-table tr:hover { background-color: #fef2f2; transition: 0.2s; }
+        .rank-table thead th { 
+            background: linear-gradient(to bottom, #1f2937, #111827); 
+            color: #fbbf24; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            border-bottom: 2px solid #d97706;
+        }
+        .rank-table tbody tr:nth-child(even) { background-color: #f8fafc; }
+        .rank-table tbody tr:hover { background-color: #fef2f2; transition: 0.2s; }
         
         /* Logo Effect */
         .gladiator-logo {
-            background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
-            box-shadow: 0 10px 15px -3px rgba(185, 28, 28, 0.3);
+            background: linear-gradient(135deg, #991b1b 0%, #450a0a 100%);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 2px solid #d97706;
         }
     </style>
 </head>
 <body class="text-slate-800 pb-12">
 
     <!-- Loading Indicator -->
-    <div id="loading" class="fixed inset-0 z-50 flex items-center justify-center loading-overlay hidden">
-        <div class="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600 mb-3"></div>
-            <p class="text-sm font-medium text-slate-600" id="loading-text">กำลังประมวลผลข้อมูล...</p>
+    <div id="loading" class="fixed inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center border border-slate-200">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-red-700 mb-4"></div>
+            <h3 class="text-xl font-bold text-slate-800">กำลังดึงข้อมูล...</h3>
+            <p class="text-sm text-slate-500 mt-2" id="loading-text">เชื่อมต่อ Google Sheet</p>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white p-6 rounded-xl shadow-xl max-w-md w-full m-4 border-l-4 border-red-600">
+            <div class="flex items-center gap-3 text-red-700 mb-4">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                <h3 class="text-lg font-bold">เกิดข้อผิดพลาด</h3>
+            </div>
+            <p class="text-sm text-slate-600 mb-4" id="error-detail">ไม่สามารถดึงข้อมูลได้</p>
+            <div class="bg-slate-100 p-3 rounded text-xs text-slate-500 font-mono mb-4 break-all max-h-32 overflow-y-auto custom-scrollbar" id="error-tech"></div>
+            <div class="flex gap-2 justify-end">
+                <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded-lg">ปิด</button>
+                <button onclick="retryFetch()" class="px-4 py-2 text-sm bg-red-700 text-white rounded-lg hover:bg-red-800 font-bold">ลองใหม่</button>
+            </div>
         </div>
     </div>
 
     <!-- Header -->
-    <header class="bg-white sticky top-0 z-30 border-b-4 border-red-800 shadow-md">
+    <header class="bg-white sticky top-0 z-30 border-b-4 border-red-800 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
                 
                 <!-- Logo & Title -->
-                <div class="flex items-center gap-4 w-full sm:w-auto cursor-pointer" onclick="switchPage('dashboard')">
-                    <div class="w-16 h-16 rounded-full flex items-center justify-center gladiator-logo border-4 border-yellow-500 relative overflow-hidden group">
-                        <div class="absolute inset-0 bg-black opacity-10 group-hover:opacity-0 transition-opacity"></div>
-                        <i data-lucide="shield-alert" class="w-9 h-9 text-white drop-shadow-md"></i>
+                <div class="flex items-center gap-4 w-full md:w-auto cursor-pointer" onclick="switchPage('dashboard')">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center gladiator-logo relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-all"></div>
+                        <!-- Placeholder for "Red-White-Bold-Gladiator-Logo" -->
+                        <i data-lucide="shield" class="w-8 h-8 text-white drop-shadow-md"></i>
                     </div>
                     <div>
-                        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">GLADIATOR <span class="text-red-700">ZONE 2</span></h1>
-                        <p class="text-xs text-slate-500 font-semibold mt-1">PERFORMANCE DASHBOARD 2569</p>
+                        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight leading-none uppercase">
+                            GLADIATOR <span class="text-red-700">ZONE 2</span>
+                        </h1>
+                        <p class="text-xs text-slate-500 font-bold mt-1 tracking-wider">PERFORMANCE DASHBOARD 2569</p>
                     </div>
                 </div>
                 
                 <!-- Navigation -->
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <button onclick="switchPage('ranking')" class="bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-slate-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors font-bold shadow-sm">
-                        <i data-lucide="crown" class="w-4 h-4"></i> อันดับ (Ranking)
+                <div class="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end">
+                    <button onclick="switchPage('ranking')" class="bg-slate-800 hover:bg-slate-900 text-yellow-400 border border-slate-700 px-5 py-2.5 rounded-lg text-sm flex items-center gap-2 transition-all font-bold shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                        <i data-lucide="trophy" class="w-4 h-4"></i> อันดับ (Ranking)
                     </button>
-                    <button onclick="switchPage('dashboard')" class="bg-white hover:bg-red-50 text-slate-700 border border-slate-300 px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors font-semibold">
-                        <i data-lucide="layout-grid" class="w-4 h-4"></i> ภาพรวม
+                    <button onclick="switchPage('dashboard')" class="bg-white hover:bg-red-50 text-slate-700 border border-slate-300 px-5 py-2.5 rounded-lg text-sm flex items-center gap-2 transition-all font-bold shadow-sm hover:border-red-300">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> ภาพรวม
                     </button>
                 </div>
             </div>
@@ -95,19 +123,22 @@
         <div id="page-dashboard" class="fade-in space-y-8">
             
             <!-- Header Section -->
-            <div class="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-200 pb-4">
+            <div class="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-slate-300 pb-4">
                 <div>
-                    <h2 class="text-3xl font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="bar-chart-2" class="w-8 h-8 text-red-700"></i>
+                    <h2 class="text-3xl font-bold text-slate-800 flex items-center gap-3">
+                        <span class="p-2 bg-red-100 text-red-700 rounded-lg"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></span>
                         สรุปผลงานตลอดปี 2569
                     </h2>
-                    <p class="text-slate-500 mt-1">ข้อมูลสะสม 12 เดือน (เบี้ยปีแรก, บำเหน็จ, เป้าหมาย)</p>
+                    <p class="text-slate-500 mt-2 text-sm ml-12">ข้อมูลสะสม 12 เดือน (เบี้ยปีแรก, บำเหน็จ, เป้าหมาย)</p>
                 </div>
-                <div class="text-right">
-                    <p class="text-xs text-slate-400">สถานะข้อมูล</p>
-                    <div class="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                        Data Integrated (12 Files)
+                <div class="text-right flex items-center gap-2">
+                    <span class="text-xs text-slate-400">สถานะ:</span>
+                    <div class="flex items-center gap-2 text-xs font-bold text-green-700 bg-green-100 px-3 py-1 rounded-full border border-green-200">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        Real-time Data
                     </div>
                 </div>
             </div>
@@ -115,26 +146,26 @@
             <!-- KPI Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- 1. FYP -->
-                <div class="bg-gradient-to-br from-red-700 to-red-900 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
-                    <div class="absolute right-0 top-0 p-4 opacity-10"><i data-lucide="banknote" class="w-32 h-32"></i></div>
-                    <p class="text-red-100 font-medium text-sm">เบี้ยปีแรก (FYP) รวม</p>
-                    <h3 class="text-4xl font-extrabold mt-2 tracking-tight" id="kpi-year-fyp">0</h3>
+                <div class="bg-gradient-to-br from-red-800 to-red-900 rounded-2xl shadow-xl p-6 text-white relative overflow-hidden group">
+                    <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><i data-lucide="banknote" class="w-32 h-32"></i></div>
+                    <p class="text-red-200 font-bold text-sm uppercase tracking-wide">เบี้ยปีแรก (FYP) รวม</p>
+                    <h3 class="text-4xl font-extrabold mt-3 tracking-tight" id="kpi-year-fyp">...</h3>
                     <div class="mt-4 flex items-center gap-2 text-sm">
-                        <span class="bg-white/20 px-2 py-1 rounded text-white font-bold backdrop-blur-sm">
-                            <span id="kpi-year-percent">0</span>%
+                        <span class="bg-white/20 px-3 py-1 rounded-lg text-white font-bold backdrop-blur-sm border border-white/10">
+                            <span id="kpi-year-percent">-</span>%
                         </span>
-                        <span class="text-red-100">ของเป้าหมายรวม</span>
+                        <span class="text-red-200 text-xs">ของเป้าหมายรวม</span>
                     </div>
                 </div>
 
                 <!-- 2. Commission -->
-                <div class="bg-white rounded-2xl shadow-sm border-l-4 border-yellow-500 p-6 relative overflow-hidden">
+                <div class="bg-white rounded-2xl shadow-md border-l-4 border-yellow-500 p-6 relative overflow-hidden">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-slate-500 font-medium text-sm">บำเหน็จรวม (Commission)</p>
-                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="kpi-year-com">0</h3>
+                            <p class="text-slate-500 font-bold text-sm uppercase tracking-wide">บำเหน็จรวม (Commission)</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="kpi-year-com">...</h3>
                         </div>
-                        <div class="p-3 bg-yellow-100 text-yellow-700 rounded-full">
+                        <div class="p-3 bg-yellow-100 text-yellow-700 rounded-xl">
                             <i data-lucide="coins" class="w-6 h-6"></i>
                         </div>
                     </div>
@@ -142,18 +173,18 @@
                 </div>
 
                 <!-- 3. Target -->
-                <div class="bg-white rounded-2xl shadow-sm border-l-4 border-blue-600 p-6 relative overflow-hidden">
+                <div class="bg-white rounded-2xl shadow-md border-l-4 border-blue-600 p-6 relative overflow-hidden">
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-slate-500 font-medium text-sm">เป้าหมายรวม (Target)</p>
-                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="kpi-year-target">0</h3>
+                            <p class="text-slate-500 font-bold text-sm uppercase tracking-wide">เป้าหมายรวม (Target)</p>
+                            <h3 class="text-3xl font-extrabold text-slate-800 mt-2" id="kpi-year-target">...</h3>
                         </div>
-                        <div class="p-3 bg-blue-100 text-blue-700 rounded-full">
+                        <div class="p-3 bg-blue-100 text-blue-700 rounded-xl">
                             <i data-lucide="target" class="w-6 h-6"></i>
                         </div>
                     </div>
-                    <div class="w-full bg-slate-100 rounded-full h-2 mt-4 overflow-hidden">
-                        <div id="prog-year-target" class="bg-blue-600 h-2 rounded-full" style="width: 0%"></div>
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 mt-4 overflow-hidden">
+                        <div id="prog-year-target" class="bg-blue-600 h-2.5 rounded-full transition-all duration-1000" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
@@ -167,18 +198,21 @@
                     </h3>
                     <div class="flex gap-4 text-xs font-semibold">
                         <div class="flex items-center gap-1"><div class="w-3 h-3 bg-slate-200 rounded"></div> เป้าหมาย</div>
-                        <div class="flex items-center gap-1"><div class="w-3 h-3 bg-red-600 rounded"></div> เบี้ยจริง</div>
+                        <div class="flex items-center gap-1"><div class="w-3 h-3 bg-red-700 rounded"></div> เบี้ยจริง</div>
                     </div>
                 </div>
                 <div id="chart-container" class="h-64 w-full flex items-end justify-between space-x-2 sm:space-x-4 px-2 overflow-x-auto custom-scrollbar pb-2">
-                    <!-- Chart JS will inject here -->
+                    <div class="w-full h-full flex items-center justify-center text-slate-400 animate-pulse">กำลังโหลดกราฟ...</div>
                 </div>
             </div>
 
             <!-- Month Select -->
             <div>
-                <h3 class="text-lg font-bold text-slate-800 mb-4">เลือกดูรายละเอียดรายเดือน</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3" id="month-grid">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-5 h-5 text-slate-500"></i>
+                    เลือกดูรายละเอียดรายเดือน
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" id="month-grid">
                     <!-- JS will inject -->
                 </div>
             </div>
@@ -186,63 +220,83 @@
 
         <!-- ================= PAGE: RANKING ================= -->
         <div id="page-ranking" class="hidden fade-in space-y-8">
-            <div class="text-center mb-8">
-                <div class="inline-flex items-center justify-center p-3 bg-yellow-100 text-yellow-700 rounded-full mb-4 shadow-sm">
-                    <i data-lucide="trophy" class="w-8 h-8"></i>
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center justify-center p-4 bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-700 rounded-full mb-4 shadow-sm border border-yellow-200">
+                    <i data-lucide="crown" class="w-10 h-10"></i>
                 </div>
-                <h2 class="text-3xl font-bold text-slate-900">Hall of Fame</h2>
-                <p class="text-slate-500">ทำเนียบสุดยอดนักรบ GLADIATOR ZONE 2 ประจำปี 2569</p>
+                <h2 class="text-4xl font-extrabold text-slate-900 tracking-tight">Hall of Fame</h2>
+                <p class="text-slate-500 mt-2 font-medium">ทำเนียบสุดยอดนักรบ GLADIATOR ZONE 2 ประจำปี 2569</p>
             </div>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 
                 <!-- 1. Manager Ranking -->
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col h-[650px]">
-                    <div class="p-5 bg-slate-800 text-white flex justify-between items-center">
-                        <h3 class="font-bold text-lg flex items-center gap-2">
-                            <i data-lucide="users" class="w-5 h-5 text-yellow-400"></i> ผู้จัดการฝ่ายขยายงาน (14 ท่าน)
-                        </h3>
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[700px]">
+                    <div class="p-6 bg-slate-800 text-white flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-white/10 rounded-lg"><i data-lucide="users" class="w-6 h-6 text-yellow-400"></i></div>
+                            <div>
+                                <h3 class="font-bold text-lg">ผู้จัดการฝ่ายขยายงาน</h3>
+                                <p class="text-slate-400 text-xs">จัดอันดับตามเบี้ยปีแรก (FYP) สะสม</p>
+                            </div>
+                        </div>
+                        <span class="bg-slate-700 text-xs px-2 py-1 rounded border border-slate-600">14 ท่าน</span>
                     </div>
                     <div class="overflow-y-auto custom-scrollbar flex-1">
                         <table class="w-full text-left border-collapse rank-table">
-                            <thead class="sticky top-0 z-10 shadow-sm">
+                            <thead class="sticky top-0 z-10 shadow-md">
                                 <tr>
-                                    <th class="p-3 text-center w-12">#</th>
-                                    <th class="p-3">ชื่อ - นามสกุล</th>
-                                    <th class="p-3 text-right">เบี้ย (FYP)</th>
-                                    <th class="p-3 text-right">บำเหน็จ</th>
-                                    <th class="p-3 text-right">เป้าหมาย</th>
+                                    <th class="p-4 text-center w-14">#</th>
+                                    <th class="p-4">ชื่อ - นามสกุล</th>
+                                    <th class="p-4 text-right">เบี้ย (FYP)</th>
+                                    <th class="p-4 text-right">บำเหน็จ</th>
+                                    <th class="p-4 text-right">เป้าหมาย</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 text-sm" id="rank-managers-body"></tbody>
+                            <tbody class="divide-y divide-slate-100 text-sm" id="rank-managers-body">
+                                <tr><td colspan="5" class="p-8 text-center text-slate-400">กำลังดึงข้อมูล...</td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
 
                 <!-- 2. Regional Ranking -->
-                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col h-[650px]">
-                    <div class="p-5 bg-red-800 text-white flex justify-between items-center">
-                        <h3 class="font-bold text-lg flex items-center gap-2">
-                            <i data-lucide="map" class="w-5 h-5 text-yellow-400"></i> Top 10 ผู้จัดการภาค
-                        </h3>
-                        <span class="text-xs bg-red-900 px-2 py-1 rounded text-red-100">รวมผลงานตามสาขา</span>
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col h-[700px]">
+                    <div class="p-6 bg-red-800 text-white flex justify-between items-center shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-white/10 rounded-lg"><i data-lucide="map" class="w-6 h-6 text-yellow-400"></i></div>
+                            <div>
+                                <h3 class="font-bold text-lg">Top 10 ผู้จัดการภาค</h3>
+                                <p class="text-red-200 text-xs">ข้อมูลจาก 14 ลิงก์ย่อย</p>
+                            </div>
+                        </div>
+                        <button onclick="loadRegionalData()" class="text-xs bg-red-900 hover:bg-red-950 px-3 py-1 rounded border border-red-700 transition-colors flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> รีเฟรช
+                        </button>
                     </div>
-                    <div class="p-3 bg-yellow-50 text-xs text-yellow-800 border-b border-yellow-100 flex items-center gap-2">
-                        <i data-lucide="info" class="w-4 h-4"></i> แสดงเฉพาะ เบี้ย, บำเหน็จ, %หน่วยเต็ม, แต่งตั้งหน่วย
+                    <div class="p-3 bg-yellow-50 text-xs text-yellow-800 border-b border-yellow-100 flex items-center gap-2 shrink-0">
+                        <i data-lucide="info" class="w-4 h-4"></i> แสดง: เบี้ย, บำเหน็จ, %หน่วยเต็ม, แต่งตั้งหน่วย
                     </div>
-                    <div class="overflow-y-auto custom-scrollbar flex-1">
+                    <div class="overflow-y-auto custom-scrollbar flex-1 bg-white">
                         <table class="w-full text-left border-collapse rank-table">
-                            <thead class="sticky top-0 z-10 shadow-sm">
+                            <thead class="sticky top-0 z-10 shadow-md">
                                 <tr>
-                                    <th class="p-3 text-center w-12">#</th>
-                                    <th class="p-3">ภาค / สาขา</th>
-                                    <th class="p-3 text-right">เบี้ย (FYP)</th>
-                                    <th class="p-3 text-right">บำเหน็จ</th>
-                                    <th class="p-3 text-center">%หน่วย</th>
-                                    <th class="p-3 text-center">แต่งตั้ง</th>
+                                    <th class="p-4 text-center w-14">#</th>
+                                    <th class="p-4">ภาค / สาขา</th>
+                                    <th class="p-4 text-right">เบี้ย (FYP)</th>
+                                    <th class="p-4 text-right">บำเหน็จ</th>
+                                    <th class="p-4 text-center">%หน่วย</th>
+                                    <th class="p-4 text-center">แต่งตั้ง</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 text-sm" id="rank-regions-body"></tbody>
+                            <tbody class="divide-y divide-slate-100 text-sm" id="rank-regions-body">
+                                <tr><td colspan="6" class="p-8 text-center text-slate-400 border border-dashed border-slate-200 m-4 rounded-lg bg-slate-50">
+                                    <div class="flex flex-col items-center gap-2">
+                                        <i data-lucide="file-plus" class="w-8 h-8 opacity-30"></i>
+                                        <span>รอเพิ่มลิงก์ชีตภาค (14 ลิงก์)</span>
+                                    </div>
+                                </td></tr>
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -252,43 +306,43 @@
 
         <!-- ================= PAGE: MONTH DETAIL ================= -->
         <div id="page-month" class="hidden fade-in space-y-6">
-            <button onclick="switchPage('dashboard')" class="text-sm text-slate-500 hover:text-red-700 flex items-center gap-1 font-bold">
-                <i data-lucide="arrow-left" class="w-4 h-4"></i> ย้อนกลับ
+            <button onclick="switchPage('dashboard')" class="text-sm text-slate-500 hover:text-red-700 flex items-center gap-1 font-bold mb-2 transition-colors">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> กลับไปหน้าภาพรวม
             </button>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div class="flex items-center gap-4">
-                    <div class="bg-red-50 text-red-700 w-16 h-16 rounded-xl flex items-center justify-center font-extrabold text-2xl border border-red-100 shadow-inner" id="month-badge">
+                    <div class="bg-gradient-to-br from-red-700 to-red-800 text-white w-16 h-16 rounded-xl flex items-center justify-center font-extrabold text-2xl shadow-lg border border-red-900" id="month-badge">
                         -
                     </div>
                     <div>
                         <h2 class="text-2xl font-bold text-slate-800" id="month-title">รายละเอียดประจำเดือน</h2>
-                        <p class="text-sm text-slate-500">ปีบริหาร 2569</p>
+                        <p class="text-sm text-slate-500 font-medium">ข้อมูลปีบริหาร 2569</p>
                     </div>
                 </div>
                 <div class="flex gap-8 text-right">
                     <div>
-                        <p class="text-xs text-slate-400 font-bold uppercase">เบี้ยปีแรก</p>
-                        <p class="text-xl font-bold text-red-700" id="month-fyp">-</p>
+                        <p class="text-xs text-slate-400 font-bold uppercase tracking-wide">เบี้ยปีแรก</p>
+                        <p class="text-2xl font-bold text-red-700" id="month-fyp">-</p>
                     </div>
                     <div>
-                        <p class="text-xs text-slate-400 font-bold uppercase">บำเหน็จ</p>
-                        <p class="text-xl font-bold text-slate-700" id="month-com">-</p>
+                        <p class="text-xs text-slate-400 font-bold uppercase tracking-wide">บำเหน็จ</p>
+                        <p class="text-2xl font-bold text-slate-800" id="month-com">-</p>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                 <div class="overflow-x-auto custom-scrollbar">
                     <table class="w-full text-left border-collapse">
-                        <thead class="bg-slate-100 text-slate-600 text-xs uppercase font-bold">
+                        <thead class="bg-slate-100 text-slate-600 text-xs uppercase font-bold tracking-wider">
                             <tr>
-                                <th class="p-4 border-b">ฝ่ายขาย</th>
-                                <th class="p-4 border-b">สาขา</th>
-                                <th class="p-4 border-b text-right">เบี้ยปีแรก</th>
-                                <th class="p-4 border-b text-right">บำเหน็จ</th>
-                                <th class="p-4 border-b text-right">เป้าหมาย</th>
-                                <th class="p-4 border-b text-center">% เป้า</th>
+                                <th class="p-4 border-b border-slate-200">ฝ่ายขาย</th>
+                                <th class="p-4 border-b border-slate-200">สาขา</th>
+                                <th class="p-4 border-b border-slate-200 text-right">เบี้ยปีแรก</th>
+                                <th class="p-4 border-b border-slate-200 text-right">บำเหน็จ</th>
+                                <th class="p-4 border-b border-slate-200 text-right">เป้าหมาย</th>
+                                <th class="p-4 border-b border-slate-200 text-center">% เป้า</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-sm" id="month-body"></tbody>
@@ -301,24 +355,15 @@
 
     <!-- Logic -->
     <script>
-        // --- DATA ENGINE ---
-        // Mock Data based on user provided CSV structure and names
-        const TEAMS_DB = [
-            { id: 1, name: "ฝ่ายฯ 4 ประดิษฐ์ แสงชัย", branch: "เขมราฐ" },
-            { id: 2, name: "ฝ่ายฯ 6 สง่า บัวไข", branch: "ศรีสะเกษ" },
-            { id: 3, name: "ฝ่ายฯ 23 วิรันต์โรจน์ การพะวงศ์", branch: "อุบลราชธานี" },
-            { id: 4, name: "ฝ่ายฯ 24 สุพิชฌาย์ เจือจันทร์", branch: "สุรินทร์" },
-            { id: 5, name: "ฝ่ายฯ 42 ตรีชญาฎาฉ์ พระงาม", branch: "ปราสาท" },
-            { id: 6, name: "ฝ่ายฯ 71 ไพบูรณ์ ราตรี", branch: "เดชอุดม" },
-            { id: 7, name: "ฝ่ายฯ 81 ญาณวุฒิ ธรรมมาบุญ", branch: "เขื่องใน" },
-            { id: 8, name: "ฝ่ายฯ 82 บังอร พงค์พีระ", branch: "รัตนบุรี" },
-            { id: 9, name: "ฝ่ายฯ 103 ญาณวุฒิ ธรรมมาบุญ", branch: "กันทรลักษ์" },
-            { id: 10, name: "ฝ่ายฯ 111 พิมพ์ลดา พสิษฐ์พงศกร", branch: "รัตนบุรี" },
-            { id: 11, name: "ฝ่ายฯ 118 ธนกร นิยมศรี", branch: "อุบลราชธานี" },
-            { id: 12, name: "ฝ่ายฯ 121 กัญญาวีร์ ภูหมื่น", branch: "ราษีไศล" },
-            { id: 13, name: "ฝ่ายฯ 127 สุดารัตน์ เชี่ยวสกุล", branch: "อำนาจเจริญ" },
-            { id: 14, name: "ฝ่ายฯ 130 อุครพัฒน์ กองพงษ์", branch: "ขุขันธ์" }
-        ];
+        // --- CONFIG ---
+        const SHEET_ID = '16q3EZt48isOrnvh6s0sET5WQtAPB_zsUXZ2TTUODT5I';
+        
+        // ** พื้นที่สำหรับใส่ลิงก์ชีตภาค 14 แห่ง **
+        // วิธีใช้: ใส่ ID ของ Google Sheet ลงในเครื่องหมายคำพูด คั่นด้วยคอมม่า
+        const REGIONAL_SHEET_IDS = [
+            // "1AbCdEfGhIjKlMnOpQrStUvWxYz...", 
+            // "1AbCdEfGhIjKlMnOpQrStUvWxYz...",
+        ]; 
 
         const MONTHS = [
             { name: "มกราคม", short: "ม.ค." }, { name: "กุมภาพันธ์", short: "ก.พ." }, { name: "มีนาคม", short: "มี.ค." },
@@ -327,225 +372,309 @@
             { name: "ตุลาคม", short: "ต.ค." }, { name: "พฤศจิกายน", short: "พ.ย." }, { name: "ธันวาคม", short: "ธ.ค." }
         ];
 
-        // Generator to create realistic data resembling the CSVs
-        function generateData() {
-            let monthlyData = [];
-            
-            // Seed random consistent performance
-            const teamPerformance = TEAMS_DB.map(t => ({
-                ...t,
-                baseFyp: Math.random() * 500000 + 100000, // 100k - 600k base
-                efficiency: Math.random() * 0.5 + 0.7 // 70% - 120% target hit
-            }));
-
-            for (let m = 0; m < 12; m++) {
-                let monthTeams = [];
-                let totalFyp = 0;
-                let totalCom = 0;
-                let totalTarget = 0;
-
-                teamPerformance.forEach(team => {
-                    // Fluctuate by month
-                    const variance = (Math.random() * 0.4) + 0.8; // 0.8 - 1.2
-                    const fyp = Math.round(team.baseFyp * variance * 100) / 100;
-                    const com = Math.round(fyp * 0.15); // ~15% commission
-                    
-                    // Target Calculation Logic: Target = Base / % achieved (simulated)
-                    // If CSV has base and % columns: Target = Base / (% / 100)
-                    // Here we simulate base targets
-                    const target = Math.round(team.baseFyp * 1.1); 
-                    
-                    // Extra stats for Regional Ranking
-                    const unitPercent = Math.floor(Math.random() * 40) + 60; // 60-100%
-                    const recruit = Math.floor(Math.random() * 3); // 0-2 recruits
-
-                    monthTeams.push({
-                        ...team,
-                        fyp,
-                        com,
-                        target,
-                        unitPercent,
-                        recruit
-                    });
-
-                    totalFyp += fyp;
-                    totalCom += com;
-                    totalTarget += target;
-                });
-
-                monthlyData.push({
-                    monthIndex: m,
-                    ...MONTHS[m],
-                    teams: monthTeams,
-                    totalFyp,
-                    totalCom,
-                    totalTarget
-                });
-            }
-            return monthlyData;
-        }
-
-        const RAW_DATA = generateData();
-
-        // --- Aggregation Logic ---
-        const AGGREGATED = {
-            managers: {},
-            regions: {},
+        // --- STATE ---
+        let APP_DATA = {
+            monthly: new Array(12).fill(null),
+            managers: {}, // Aggregated data
             total: { fyp: 0, com: 0, target: 0 }
         };
 
-        function processData() {
-            RAW_DATA.forEach(month => {
-                AGGREGATED.total.fyp += month.totalFyp;
-                AGGREGATED.total.com += month.totalCom;
-                AGGREGATED.total.target += month.totalTarget;
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initUI();
+            loadAllData();
+            loadRegionalData(); // Will run if IDs are present
+        });
 
-                month.teams.forEach(t => {
-                    // 1. Manager Aggregation
-                    if (!AGGREGATED.managers[t.name]) {
-                        AGGREGATED.managers[t.name] = { 
-                            name: t.name, 
-                            branch: t.branch, 
+        function initUI() {
+            const grid = document.getElementById('month-grid');
+            let html = '';
+            MONTHS.forEach((m, i) => {
+                html += `
+                    <div onclick="openMonthDetail(${i})" class="bg-white border border-slate-200 rounded-xl p-4 hover:border-red-500 hover:shadow-lg cursor-pointer transition-all group relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                        <div class="flex justify-between items-start mb-2 relative z-10">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Month ${i+1}</span>
+                            <i data-lucide="bar-chart-2" class="w-4 h-4 text-slate-300 group-hover:text-red-600 transition-colors"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-700 group-hover:text-red-700 relative z-10">${m.short}</h3>
+                    </div>
+                `;
+            });
+            grid.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // --- FETCH LOGIC: MAIN SHEET ---
+        async function loadAllData() {
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loading-text');
+            loading.classList.remove('hidden');
+            
+            // Reset totals
+            APP_DATA.managers = {};
+            APP_DATA.total = { fyp: 0, com: 0, target: 0 };
+
+            // Fetch 12 Months
+            for (let i = 0; i < MONTHS.length; i++) {
+                const m = MONTHS[i];
+                loadingText.innerText = `กำลังดึงข้อมูลเดือน ${m.name}...`;
+                try {
+                    let rows = await fetchSheetData(SHEET_ID, m.name);
+                    APP_DATA.monthly[i] = processRows(rows);
+                } catch (e) {
+                    console.warn(`Month ${m.name} skipped or empty:`, e);
+                    APP_DATA.monthly[i] = { teams: [], totalFyp: 0, totalCom: 0, totalTarget: 0 };
+                }
+            }
+
+            // Aggregate Data
+            aggregateData();
+
+            loading.classList.add('hidden');
+            renderDashboard();
+            renderManagerRanking();
+        }
+
+        async function fetchSheetData(sheetId, sheetName) {
+            const cacheBuster = new Date().getTime();
+            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&_=${cacheBuster}`;
+            
+            const res = await fetch(url);
+            if(!res.ok) throw new Error("HTTP Error");
+            const txt = await res.text();
+            
+            const jsonStart = txt.indexOf("{");
+            const jsonEnd = txt.lastIndexOf("}") + 1;
+            if (jsonStart < 0) throw new Error("Invalid format");
+            
+            const json = JSON.parse(txt.substring(jsonStart, jsonEnd));
+            if(json.status === 'error') throw new Error(json.errors[0].detailed_message);
+            
+            return json.table.rows;
+        }
+
+        function processRows(rows) {
+            let teams = [];
+            let totalFyp = 0;
+            let totalCom = 0;
+            let totalTarget = 0;
+
+            rows.forEach(r => {
+                if(!r.c || !r.c[1]) return;
+                
+                const name = r.c[1]?.v ? String(r.c[1].v) : "";
+                if(!name.includes("ฝ่ายฯ")) return; // Only process rows with "ฝ่ายฯ"
+
+                const branch = r.c[2]?.v ? String(r.c[2].v) : "-";
+                
+                const parseNum = (c) => {
+                    if(!c || !c.v) return 0;
+                    if(typeof c.v === 'number') return c.v;
+                    return parseFloat(String(c.v).replace(/,/g, '')) || 0;
+                };
+
+                const fyp = parseNum(r.c[3]); // Col D: FYP
+                const com = parseNum(r.c[4]); // Col E: Commission
+                
+                // Target Logic: user said "เป้าหมายคือ ฐานเบี้ย"
+                // Checking previous context, Base Premium was around Col 21 (Index 21/V)
+                // Let's look deep for "Target"
+                let target = 0;
+                if(r.c.length > 20) {
+                     // Try finding the large number column near end
+                     // Index 21 is a good guess based on previous CSV snippet provided by user
+                     target = parseNum(r.c[21]); 
+                }
+                
+                // Fallback if target is 0 but FYP exists (User formula: Target = Base / % * 100)
+                // If we don't have Base, we can't calculate. Just use 0 or leave it.
+                
+                teams.push({ name, branch, fyp, com, target });
+                totalFyp += fyp;
+                totalCom += com;
+                totalTarget += target;
+            });
+
+            return { teams, totalFyp, totalCom, totalTarget };
+        }
+
+        function aggregateData() {
+            APP_DATA.monthly.forEach(m => {
+                if(!m) return;
+                APP_DATA.total.fyp += m.totalFyp;
+                APP_DATA.total.com += m.totalCom;
+                APP_DATA.total.target += m.totalTarget;
+
+                m.teams.forEach(t => {
+                    if(!APP_DATA.managers[t.name]) {
+                        APP_DATA.managers[t.name] = { 
+                            name: t.name, branch: t.branch, 
                             fyp: 0, com: 0, target: 0 
                         };
                     }
-                    AGGREGATED.managers[t.name].fyp += t.fyp;
-                    AGGREGATED.managers[t.name].com += t.com;
-                    AGGREGATED.managers[t.name].target += t.target;
-
-                    // 2. Region (Branch) Aggregation
-                    // Mapping Team to Branch/Region logic
-                    const regionKey = t.branch; // Use Branch as Region proxy as requested
-                    if (!AGGREGATED.regions[regionKey]) {
-                        AGGREGATED.regions[regionKey] = {
-                            name: regionKey,
-                            fyp: 0, com: 0, 
-                            unitPercentSum: 0, count: 0, recruit: 0
-                        };
-                    }
-                    AGGREGATED.regions[regionKey].fyp += t.fyp;
-                    AGGREGATED.regions[regionKey].com += t.com;
-                    AGGREGATED.regions[regionKey].unitPercentSum += t.unitPercent;
-                    AGGREGATED.regions[regionKey].recruit += t.recruit;
-                    AGGREGATED.regions[regionKey].count += 1;
+                    const mgr = APP_DATA.managers[t.name];
+                    mgr.fyp += t.fyp;
+                    mgr.com += t.com;
+                    mgr.target += t.target;
                 });
             });
         }
 
-        // --- UI Rendering ---
+        // --- FETCH LOGIC: REGIONAL (14 LINKS) ---
+        async function loadRegionalData() {
+            const regBody = document.getElementById('rank-regions-body');
+            if(REGIONAL_SHEET_IDS.length === 0) {
+                regBody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 border border-dashed border-slate-200 m-4 rounded-lg bg-slate-50"><div class="flex flex-col items-center gap-2"><i data-lucide="file-plus" class="w-8 h-8 opacity-30"></i><span>ยังไม่มีลิงก์ชีตภาค (ใส่ ID ในโค้ด)</span></div></td></tr>`;
+                lucide.createIcons();
+                return;
+            }
+
+            regBody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-500">กำลังดึงข้อมูลจาก ${REGIONAL_SHEET_IDS.length} แหล่ง...</td></tr>`;
+
+            let regions = [];
+            
+            // Loop through each external sheet ID
+            for (let i = 0; i < REGIONAL_SHEET_IDS.length; i++) {
+                const id = REGIONAL_SHEET_IDS[i];
+                try {
+                    // Assuming fetching 'Summary' or first sheet from regional files
+                    // We need to fetch specific cells: FYP, Com, %Unit, Appointed
+                    // Since structure is unknown, I will assume a standard summary row exists or fetch range A1:Z
+                    // For safety, I'll fetch the first sheet
+                    const rows = await fetchSheetData(id, ''); // Empty sheet name gets first sheet
+                    
+                    // Logic to extract summary row (usually "รวม" or specific cell)
+                    // This is placeholder logic that you might need to adjust based on exact regional sheet layout
+                    let fyp = 0, com = 0, unitPct = 0, recruit = 0;
+                    let regionName = `ภาคที่ ${i+1}`; // Fallback name
+
+                    // Dummy extraction logic - expects Summary row at bottom
+                    rows.forEach(r => {
+                        if (r.c && r.c[0] && String(r.c[0].v).includes("รวม")) {
+                             // Map columns accordingly
+                             fyp = r.c[3] ? r.c[3].v : 0;
+                             com = r.c[4] ? r.c[4].v : 0;
+                             // ... extraction logic
+                        }
+                    });
+                    
+                    regions.push({ name: regionName, fyp, com, unitPct, recruit });
+
+                } catch (e) {
+                    console.error(`Region sheet ${i+1} failed`, e);
+                }
+            }
+
+            // Sort and Render
+            regions.sort((a,b) => b.fyp - a.fyp).slice(0, 10);
+            let html = '';
+            regions.forEach((r, idx) => {
+                html += `
+                    <tr class="hover:bg-slate-50 border-b border-slate-100">
+                        <td class="p-4 text-center font-bold text-slate-400">${idx+1}</td>
+                        <td class="p-4 font-bold text-slate-700">${r.name}</td>
+                        <td class="p-4 text-right font-bold text-blue-700 font-mono">${fmt(r.fyp)}</td>
+                        <td class="p-4 text-right font-mono text-slate-600">${fmt(r.com)}</td>
+                        <td class="p-4 text-center"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">${r.unitPct}%</span></td>
+                        <td class="p-4 text-center font-bold text-slate-700">+${r.recruit}</td>
+                    </tr>
+                `;
+            });
+            regBody.innerHTML = html || `<tr><td colspan="6" class="p-4 text-center">ไม่พบข้อมูล</td></tr>`;
+        }
+
+        // --- RENDER ---
         const fmt = (n) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n);
 
         function renderDashboard() {
             // KPI
-            document.getElementById('kpi-year-fyp').innerText = fmt(AGGREGATED.total.fyp);
-            document.getElementById('kpi-year-com').innerText = fmt(AGGREGATED.total.com);
-            document.getElementById('kpi-year-target').innerText = fmt(AGGREGATED.total.target);
+            document.getElementById('kpi-year-fyp').innerText = fmt(APP_DATA.total.fyp);
+            document.getElementById('kpi-year-com').innerText = fmt(APP_DATA.total.com);
+            document.getElementById('kpi-year-target').innerText = fmt(APP_DATA.total.target);
             
-            const pct = (AGGREGATED.total.fyp / AGGREGATED.total.target * 100);
+            const pct = APP_DATA.total.target > 0 ? (APP_DATA.total.fyp / APP_DATA.total.target * 100) : 0;
             document.getElementById('kpi-year-percent').innerText = pct.toFixed(1);
             document.getElementById('prog-year-target').style.width = Math.min(pct, 100) + '%';
 
             // Chart
-            const chartCont = document.getElementById('chart-container');
-            let chartHtml = '';
-            const maxVal = Math.max(...RAW_DATA.map(m => Math.max(m.totalFyp, m.totalTarget)));
-
-            RAW_DATA.forEach(m => {
-                const hFyp = (m.totalFyp / maxVal) * 100;
-                const hTarget = (m.totalTarget / maxVal) * 100;
-                chartHtml += `
-                    <div class="flex flex-col items-center justify-end h-full flex-1 group min-w-[30px]" onclick="openMonth(${m.monthIndex})">
-                        <div class="relative w-full flex justify-center items-end h-[85%] space-x-1">
-                            <div class="w-1/2 bg-slate-200 rounded-t-sm" style="height: ${hTarget}%" title="Target: ${fmt(m.totalTarget)}"></div>
-                            <div class="w-1/2 bg-red-600 rounded-t-sm opacity-90 group-hover:opacity-100" style="height: ${hFyp}%" title="Actual: ${fmt(m.totalFyp)}"></div>
-                        </div>
-                        <div class="mt-2 text-[10px] text-slate-500 font-bold">${m.short}</div>
-                    </div>
-                `;
-            });
-            chartCont.innerHTML = chartHtml;
-
-            // Month Grid
-            const grid = document.getElementById('month-grid');
-            let gridHtml = '';
-            RAW_DATA.forEach(m => {
-                gridHtml += `
-                    <div onclick="openMonth(${m.monthIndex})" class="bg-white border border-slate-200 rounded-xl p-4 hover:border-red-500 hover:shadow-md cursor-pointer transition-all">
-                        <div class="flex justify-between mb-2">
-                            <span class="text-xs font-bold text-slate-400">Month ${m.monthIndex + 1}</span>
-                            <i data-lucide="bar-chart-2" class="w-4 h-4 text-slate-300"></i>
-                        </div>
-                        <h3 class="text-lg font-bold text-slate-800">${m.short}</h3>
-                        <p class="text-xs text-red-600 font-semibold mt-1">${fmt(m.totalFyp)}</p>
-                    </div>
-                `;
-            });
-            grid.innerHTML = gridHtml;
-        }
-
-        function renderRanking() {
-            // 1. Managers
-            const mgrs = Object.values(AGGREGATED.managers).sort((a,b) => b.fyp - a.fyp);
-            let mgrHtml = '';
-            mgrs.forEach((m, i) => {
-                const rankClass = i < 3 ? 'bg-yellow-400 text-white shadow-md border-none' : 'bg-slate-100 text-slate-500';
-                mgrHtml += `
-                    <tr>
-                        <td class="p-3 text-center"><span class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto ${rankClass}">${i+1}</span></td>
-                        <td class="p-3">
-                            <div class="font-bold text-slate-800 text-sm">${m.name}</div>
-                            <div class="text-xs text-slate-400">${m.branch}</div>
-                        </td>
-                        <td class="p-3 text-right font-bold text-red-700">${fmt(m.fyp)}</td>
-                        <td class="p-3 text-right text-slate-600">${fmt(m.com)}</td>
-                        <td class="p-3 text-right text-slate-500 text-xs">${fmt(m.target)}</td>
-                    </tr>
-                `;
-            });
-            document.getElementById('rank-managers-body').innerHTML = mgrHtml;
-
-            // 2. Regions (Top 10)
-            const regs = Object.values(AGGREGATED.regions).sort((a,b) => b.fyp - a.fyp).slice(0, 10);
-            let regHtml = '';
-            regs.forEach((r, i) => {
-                const avgUnit = r.count > 0 ? (r.unitPercentSum / r.count).toFixed(0) : 0;
-                regHtml += `
-                    <tr>
-                        <td class="p-3 text-center font-bold text-slate-400">${i+1}</td>
-                        <td class="p-3 font-bold text-slate-700">${r.name}</td>
-                        <td class="p-3 text-right font-bold text-blue-700">${fmt(r.fyp)}</td>
-                        <td class="p-3 text-right text-slate-600">${fmt(r.com)}</td>
-                        <td class="p-3 text-center"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">${avgUnit}%</span></td>
-                        <td class="p-3 text-center font-bold text-slate-700">+${r.recruit}</td>
-                    </tr>
-                `;
-            });
-            document.getElementById('rank-regions-body').innerHTML = regHtml;
-        }
-
-        function openMonth(idx) {
-            const m = RAW_DATA[idx];
-            document.getElementById('month-badge').innerText = m.short;
-            document.getElementById('month-title').innerText = "รายละเอียดเดือน " + m.name;
-            document.getElementById('month-fyp').innerText = fmt(m.totalFyp);
-            document.getElementById('month-com').innerText = fmt(m.totalCom);
-
+            const container = document.getElementById('chart-container');
             let html = '';
-            m.teams.forEach(t => {
-                const pct = t.target > 0 ? (t.fyp / t.target * 100).toFixed(0) : 0;
-                const statusColor = pct >= 100 ? 'text-green-600 bg-green-50' : (pct >= 80 ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50');
+            const maxVal = Math.max(...APP_DATA.monthly.map(m => m ? Math.max(m.totalFyp, m.totalTarget) : 0), 1);
+
+            APP_DATA.monthly.forEach((m, i) => {
+                const fyp = m ? m.totalFyp : 0;
+                const h = maxVal > 0 ? (fyp / maxVal) * 100 : 0;
+                const color = fyp > 0 ? 'bg-red-700' : 'bg-slate-200';
                 
                 html += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4 font-bold text-slate-700">${t.name}</td>
-                        <td class="p-4 text-slate-500">${t.branch}</td>
-                        <td class="p-4 text-right font-bold text-red-600">${fmt(t.fyp)}</td>
-                        <td class="p-4 text-right text-slate-600">${fmt(t.com)}</td>
-                        <td class="p-4 text-right text-slate-400 font-mono text-xs">${fmt(t.target)}</td>
-                        <td class="p-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${statusColor}">${pct}%</span></td>
+                    <div class="flex flex-col items-center justify-end h-full flex-1 group min-w-[30px]" onclick="openMonthDetail(${i})">
+                        <div class="w-full ${color} rounded-t-sm opacity-80 group-hover:opacity-100 relative transition-all" style="height: ${h}%">
+                             <div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded z-10 pointer-events-none shadow-lg">
+                                ${fmt(fyp)}
+                            </div>
+                        </div>
+                        <div class="mt-2 text-[10px] text-slate-500 font-bold">${MONTHS[i].short}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderManagerRanking() {
+            const mgrs = Object.values(APP_DATA.managers).sort((a,b) => b.fyp - a.fyp);
+            let html = '';
+            
+            mgrs.forEach((m, i) => {
+                const rankClass = i < 3 ? 'bg-yellow-400 text-white shadow-md border-none ring-2 ring-yellow-200' : 'bg-slate-100 text-slate-500';
+                html += `
+                    <tr class="hover:bg-red-50 transition-colors border-b border-slate-100">
+                        <td class="p-4 text-center"><span class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto ${rankClass}">${i+1}</span></td>
+                        <td class="p-4">
+                            <div class="font-bold text-slate-800 text-sm">${m.name}</div>
+                            <div class="text-xs text-slate-400 font-medium">${m.branch}</div>
+                        </td>
+                        <td class="p-4 text-right font-bold text-red-700 font-mono">${fmt(m.fyp)}</td>
+                        <td class="p-4 text-right text-slate-600 font-mono">${fmt(m.com)}</td>
+                        <td class="p-4 text-right text-slate-400 font-mono text-xs">${fmt(m.target)}</td>
                     </tr>
                 `;
             });
+            
+            document.getElementById('rank-managers-body').innerHTML = html || `<tr><td colspan="5" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>`;
+        }
+
+        function openMonthDetail(idx) {
+            const m = MONTHS[idx];
+            const data = APP_DATA.monthly[idx];
+            
+            document.getElementById('month-badge').innerText = m.short;
+            document.getElementById('month-title').innerText = "ผลงาน " + m.name;
+            document.getElementById('month-fyp').innerText = fmt(data ? data.totalFyp : 0);
+            document.getElementById('month-com').innerText = fmt(data ? data.totalCom : 0);
+
+            let html = '';
+            if (data && data.teams.length > 0) {
+                data.teams.forEach(t => {
+                    // Calc % Target
+                    const pct = t.target > 0 ? (t.fyp / t.target * 100).toFixed(0) : 0;
+                    const statusColor = pct >= 100 ? 'text-green-700 bg-green-100' : (pct >= 80 ? 'text-yellow-700 bg-yellow-100' : 'text-red-700 bg-red-100');
+                    
+                    html += `
+                        <tr class="hover:bg-slate-50 border-b border-slate-100">
+                            <td class="p-4 font-bold text-slate-700">${t.name}</td>
+                            <td class="p-4 text-slate-500">${t.branch}</td>
+                            <td class="p-4 text-right font-bold text-red-700 font-mono">${fmt(t.fyp)}</td>
+                            <td class="p-4 text-right text-slate-600 font-mono">${fmt(t.com)}</td>
+                            <td class="p-4 text-right text-slate-400 font-mono text-xs">${fmt(t.target)}</td>
+                            <td class="p-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${statusColor}">${pct}%</span></td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html = `<tr><td colspan="6" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>`;
+            }
             document.getElementById('month-body').innerHTML = html;
             switchPage('month');
         }
@@ -555,12 +684,11 @@
             document.getElementById('page-'+p).classList.remove('hidden');
             window.scrollTo(0,0);
         }
-
-        // Init
-        processData();
-        renderDashboard();
-        renderRanking();
-        lucide.createIcons();
+        
+        function retryFetch() {
+            document.getElementById('error-modal').classList.add('hidden');
+            loadAllData();
+        }
 
     </script>
 </body>
