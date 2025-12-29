@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สรุปผลงานกลุ่มการตลาด โซน 2 (Real-time Live)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Font Noto Sans Thai -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Noto Sans Thai', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            .shadow-sm, .shadow-md { box-shadow: none !important; }
+            .print-break { page-break-before: always; }
+        }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        .loading-overlay { backdrop-filter: blur(2px); background: rgba(255,255,255,0.9); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-10 print:pb-0 relative">
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="fixed inset-0 z-50 flex items-center justify-center loading-overlay hidden">
+        <div class="bg-white p-6 rounded-xl shadow-xl flex flex-col items-center">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-3"></div>
+            <p class="text-sm font-medium text-slate-600" id="loading-text">กำลังเชื่อมต่อ Google Sheet...</p>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 hidden fade-in">
+        <div class="bg-white p-6 rounded-xl shadow-xl max-w-md w-full m-4">
+            <div class="flex items-center gap-3 text-red-600 mb-4">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+                <h3 class="text-lg font-bold">เชื่อมต่อข้อมูลล้มเหลว</h3>
+            </div>
+            <p class="text-sm text-slate-600 mb-4" id="error-detail">ไม่สามารถดึงข้อมูลจาก Google Sheet ได้</p>
+            <div class="bg-slate-50 p-3 rounded text-xs text-slate-500 font-mono mb-4 break-all" id="error-tech">
+                Error Details...
+            </div>
+            <div class="flex gap-2 justify-end">
+                <a href="https://docs.google.com/spreadsheets/d/16q3EZt48isOrnvh6s0sET5WQtAPB_zsUXZ2TTUODT5I/edit?usp=sharing" target="_blank" class="px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg">
+                    ตรวจสอบ Sheet
+                </a>
+                <button onclick="retryFetch()" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    ลองใหม่อีกครั้ง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-20 border-b border-gray-200 print:static print:border-none">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3 w-full sm:w-auto cursor-pointer" onclick="showYearView()">
+                    <div class="p-2.5 bg-green-600 rounded-lg shadow-md text-white print:hidden hover:bg-green-700 transition-colors">
+                        <i data-lucide="sheet" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">ผลงานกลุ่มการตลาด โซน 2</h1>
+                        <div class="flex flex-wrap items-center gap-2 mt-1 no-print">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 animate-pulse">
+                                <i data-lucide="wifi" class="w-3 h-3"></i> Real-time
+                            </span>
+                            <span class="text-xs text-gray-400 flex items-center gap-1">
+                                <i data-lucide="database" class="w-3 h-3"></i> ID: 16q3EZ...
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2 w-full sm:w-auto no-print">
+                    <button id="btn-back" onclick="showYearView()" class="hidden text-slate-600 bg-white hover:bg-slate-50 border border-slate-300 px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i> กลับหน้าหลัก
+                    </button>
+                    <button onclick="window.print()" class="text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm font-medium">
+                        <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- VIEW: YEARLY OVERVIEW (Calendar) -->
+        <div id="year-view" class="fade-in">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold text-slate-800">เลือกเดือนที่ต้องการดูข้อมูล</h2>
+                <p class="text-slate-500 mt-2">ข้อมูลจะถูกดึงสดจาก Google Sheet ทันทีที่คลิก</p>
+            </div>
+
+            <!-- Month Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10">
+                <div id="month-grid-container" class="contents"></div>
+            </div>
+            
+             <div class="text-center text-xs text-slate-400">
+                * หากคลิกแล้วโหลดไม่ขึ้น กรุณาตรวจสอบว่าชื่อ Tab ใน Google Sheet ตรงกับชื่อย่อเดือน (เช่น "ม.ค.", "ก.พ.")
+            </div>
+        </div>
+
+        <!-- VIEW: MONTHLY DETAIL (Hidden by default) -->
+        <div id="month-view" class="hidden fade-in">
+            
+            <!-- Context Header -->
+            <div class="flex items-center justify-between mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white p-2 rounded-lg shadow-sm text-blue-600 font-bold text-xl w-12 h-12 flex items-center justify-center border border-blue-100" id="current-month-badge">
+                        -
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-blue-900" id="current-month-title">กำลังโหลด...</h2>
+                        <p class="text-xs text-blue-600 flex items-center gap-1">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> อัปเดตล่าสุด: <span id="last-updated">เมื่อสักครู่</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right hidden sm:block">
+                     <button onclick="retryFetch()" class="text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1">
+                        <i data-lucide="rotate-cw" class="w-3 h-3"></i> รีเฟรชข้อมูล
+                     </button>
+                </div>
+            </div>
+
+            <!-- KPI Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 print:grid-cols-4">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 relative overflow-hidden group hover:border-blue-200 transition-all">
+                    <div class="relative">
+                        <p class="text-sm font-semibold text-slate-500">ผลงานจริง (FYP)</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-2" id="kpi-fyp">-</h3>
+                        <p class="text-xs text-slate-400 mt-2">ยอดขายรวม</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:border-purple-200 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">เทียบเป้าหมาย</p>
+                            <h3 class="text-2xl font-bold mt-2 text-slate-900" id="kpi-percent">-</h3>
+                        </div>
+                        <div class="p-2 bg-purple-50 rounded-lg text-purple-600">
+                            <i data-lucide="target" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 mt-4 overflow-hidden">
+                        <div id="progress-bar" class="bg-gray-300 h-2 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:border-emerald-200 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">ฝ่าย Active</p>
+                            <h3 class="text-2xl font-bold text-slate-900 mt-2" id="kpi-active-units">-</h3>
+                        </div>
+                        <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                            <i data-lucide="briefcase" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-500 mt-4" id="kpi-active-desc">-</p>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:border-orange-200 transition-all">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500">Top Team</p>
+                            <h3 class="text-lg font-bold text-slate-900 mt-2 truncate w-full" id="kpi-top-team">-</h3>
+                        </div>
+                        <div class="p-2 bg-orange-50 rounded-lg text-orange-600">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm text-green-600 mt-4 font-semibold" id="kpi-top-val">-</p>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block mt-6">
+                <!-- Summary Text -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col print:border-gray-300 lg:col-span-1">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="w-5 h-5 text-slate-500"></i>
+                        สรุปภาพรวม
+                    </h2>
+                    
+                    <div id="summary-card" class="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                        <div class="flex items-center gap-2 mb-1">
+                            <i id="summary-icon" data-lucide="loader" class="w-5 h-5 text-slate-600 animate-spin"></i>
+                            <span id="summary-title" class="font-bold text-slate-800">กำลังประมวลผล...</span>
+                        </div>
+                        <p id="summary-desc" class="text-xs text-slate-600 ml-7 leading-relaxed">
+                            ระบบกำลังดึงข้อมูลล่าสุดจาก Google Sheet
+                        </p>
+                    </div>
+                </div>
+                
+                 <!-- Chart -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">กราฟเปรียบเทียบ Top 5 (Target vs Actual)</h2>
+                    <div id="monthly-chart-container" class="h-48 w-full flex items-end justify-start space-x-6 px-2 overflow-x-auto custom-scrollbar pb-2">
+                         <div class="w-full h-full flex items-center justify-center text-slate-400 text-sm">Waiting for data...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mt-6 print:shadow-none print:border-gray-300">
+                <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-slate-800">รายละเอียดรายฝ่าย (Live Data)</h2>
+                    <span class="text-xs text-slate-400 font-mono">Source: Google Sheet</span>
+                </div>
+                
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse" id="data-table">
+                        <thead class="bg-slate-50 text-slate-600 text-xs uppercase">
+                            <tr>
+                                <th class="p-4 font-semibold">อันดับ</th>
+                                <th class="p-4 font-semibold">ฝ่ายขาย / ทีม</th>
+                                <th class="p-4 font-semibold text-right">เป้าหมาย</th>
+                                <th class="p-4 font-semibold text-right">ผลงานจริง</th>
+                                <th class="p-4 font-semibold text-center">%</th>
+                                <th class="p-4 font-semibold text-center">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white" id="table-body">
+                            <!-- Data Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Logic -->
+    <script>
+        // CONFIG
+        const SHEET_ID = '16q3EZt48isOrnvh6s0sET5WQtAPB_zsUXZ2TTUODT5I';
+        const MONTHS = [
+            { name: "มกราคม", full: "มกราคม" }, { name: "ก.พ.", full: "กุมภาพันธ์" }, 
+            { name: "มี.ค.", full: "มีนาคม" }, { name: "เม.ย.", full: "เมษายน" }, 
+            { name: "พ.ค.", full: "พฤษภาคม" }, { name: "มิ.ย.", full: "มิถุนายน" }, 
+            { name: "ก.ค.", full: "กรกฎาคม" }, { name: "ส.ค.", full: "สิงหาคม" }, 
+            { name: "ก.ย.", full: "กันยายน" }, { name: "ต.ค.", full: "ตุลาคม" }, 
+            { name: "พ.ย.", full: "พฤศจิกายน" }, { name: "ธ.ค.", full: "ธันวาคม" }
+        ];
+
+        // Global State
+        let currentSheetName = "";
+        let currentIndex = -1;
+
+        // Utils
+        const formatCurrency = (num) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num);
+        const formatNum = (num) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(num);
+
+        function initYearView() {
+            const grid = document.getElementById('month-grid-container');
+            let gridHtml = '';
+
+            MONTHS.forEach((m, i) => {
+                gridHtml += `
+                    <div onclick="openMonth(${i})" class="bg-white text-slate-700 border border-slate-200 shadow-sm rounded-xl p-6 hover:border-blue-500 hover:shadow-md cursor-pointer group transition-all relative select-none">
+                        <h3 class="text-xl font-bold mb-1 group-hover:text-blue-600 transition-colors">${m.full}</h3>
+                        <p class="text-xs opacity-70">2569</p>
+                        <div class="mt-4 flex items-center justify-between opacity-80 text-xs text-slate-400 group-hover:text-blue-500">
+                            <span>คลิกดูข้อมูล</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 transform group-hover:translate-x-1 transition-transform"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            grid.innerHTML = gridHtml;
+            lucide.createIcons();
+        }
+
+        function showYearView() {
+            document.getElementById('year-view').classList.remove('hidden');
+            document.getElementById('month-view').classList.add('hidden');
+            document.getElementById('btn-back').classList.add('hidden');
+            document.getElementById('error-modal').classList.add('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        async function openMonth(index) {
+            const m = MONTHS[index];
+            currentSheetName = m.name;
+            currentIndex = index;
+            
+            // UI Switch
+            document.getElementById('year-view').classList.add('hidden');
+            document.getElementById('month-view').classList.remove('hidden');
+            document.getElementById('btn-back').classList.remove('hidden');
+            
+            // Set Header Info
+            document.getElementById('current-month-badge').innerText = m.name;
+            document.getElementById('current-month-title').innerText = `${m.full} 2569`;
+
+            // Fetch Data
+            await fetchData(m.name);
+            window.scrollTo(0, 0);
+        }
+
+        function retryFetch() {
+            document.getElementById('error-modal').classList.add('hidden');
+            if(currentSheetName) {
+                fetchData(currentSheetName);
+            }
+        }
+
+        async function fetchData(sheetName) {
+            const loading = document.getElementById('loading');
+            const errorModal = document.getElementById('error-modal');
+            const errorDetail = document.getElementById('error-detail');
+            const errorTech = document.getElementById('error-tech');
+            
+            loading.classList.remove('hidden');
+            errorModal.classList.add('hidden');
+            
+            try {
+                // FORCE REAL-TIME: Use Google Visualization API Query
+                // Note: The sheet must be publicly readable for this to work without OAuth
+                // Use cache busting parameter
+                const cacheBuster = new Date().getTime();
+                const query = `SELECT A, B, C, D`; // Assuming structure: A=Name, B=Branch, C=Target, D=Actual
+                const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&_=${cacheBuster}`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const text = await response.text();
+                
+                // Parse JSON from GVIZ response: /*O_o*/ google.visualization.Query.setResponse({...});
+                const jsonStart = text.indexOf("{");
+                const jsonEnd = text.lastIndexOf("}") + 1;
+                
+                if (jsonStart === -1 || jsonEnd === -1) {
+                    throw new Error("Invalid Data Format: ไม่พบ JSON ในการตอบกลับ (ชื่อ Tab อาจไม่ถูกต้อง)");
+                }
+
+                const jsonString = text.substring(jsonStart, jsonEnd);
+                const json = JSON.parse(jsonString);
+
+                if (json.status === 'error') {
+                    throw new Error(`Sheet Error: ${json.errors[0].detailed_message}`);
+                }
+
+                processData(json);
+                
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('last-updated').innerText = now.toLocaleTimeString('th-TH');
+
+            } catch (error) {
+                console.error("Fetch failed:", error);
+                
+                // Show Error Modal
+                errorDetail.innerText = `ไม่สามารถดึงข้อมูลของเดือน "${sheetName}" ได้`;
+                errorTech.innerText = `${error.message}\n\nคำแนะนำ: ตรวจสอบว่าชื่อ Tab ใน Google Sheet คือ "${sheetName}" หรือไม่ และ Sheet เปิดเป็น Public หรือยัง`;
+                errorModal.classList.remove('hidden');
+                
+                // Clear UI
+                resetUI();
+                
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function processData(json) {
+            const rows = json.table.rows;
+            let teams = [];
+            let totalTarget = 0;
+            let totalActual = 0;
+            let activeCount = 0;
+
+            rows.forEach((row) => {
+                // GVIZ returns null for empty cells, ensure we handle it
+                if (!row.c || !row.c[0]) return;
+                
+                const name = row.c[0]?.v ? String(row.c[0].v) : "";
+                const branch = row.c[1]?.v ? String(row.c[1].v) : "-";
+                // Try to parse numbers, handle potential string formatting (remove commas)
+                let targetStr = row.c[2]?.v ? String(row.c[2].v).replace(/,/g, '') : "0";
+                let actualStr = row.c[3]?.v ? String(row.c[3].v).replace(/,/g, '') : "0";
+                
+                const target = parseFloat(targetStr) || 0;
+                const actual = parseFloat(actualStr) || 0;
+
+                // Simple filter to skip header rows (if "Target" contains text)
+                if (isNaN(target) && isNaN(actual)) return;
+                if (name.includes("รวม") || name.includes("Total") || name.includes("ชื่อฝ่าย")) return;
+
+                if (actual > 0) activeCount++;
+                totalTarget += target;
+                totalActual += actual;
+                teams.push({ name, branch, target, actual });
+            });
+
+            teams.sort((a, b) => b.actual - a.actual);
+            updateUI(teams, totalTarget, totalActual, activeCount);
+        }
+
+        function updateUI(teams, totalTarget, totalActual, activeCount) {
+            // 1. KPI Cards
+            document.getElementById('kpi-fyp').innerText = formatNum(totalActual);
+            document.getElementById('kpi-target').innerText = formatNum(totalTarget);
+            document.getElementById('kpi-active-units').innerText = `${activeCount} / ${teams.length}`;
+            
+            const ratio = teams.length > 0 ? ((activeCount/teams.length)*100).toFixed(0) : 0;
+            document.getElementById('kpi-active-desc').innerText = `Active Ratio ${ratio}%`;
+
+            const percent = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
+            const percentEl = document.getElementById('kpi-percent');
+            const progressBar = document.getElementById('progress-bar');
+
+            percentEl.innerText = percent.toFixed(1) + '%';
+            
+            let colorClass = "text-red-600";
+            let bgClass = "bg-red-500";
+            
+            if (percent >= 100) { colorClass = "text-green-600"; bgClass = "bg-green-500"; }
+            else if (percent >= 80) { colorClass = "text-yellow-600"; bgClass = "bg-yellow-500"; }
+            
+            percentEl.className = `text-2xl font-bold mt-2 ${colorClass}`;
+            progressBar.className = `${bgClass} h-2 rounded-full transition-all duration-500`;
+            progressBar.style.width = Math.min(percent, 100) + '%';
+
+            // Top Team
+            if (teams.length > 0) {
+                document.getElementById('kpi-top-team').innerText = teams[0].name;
+                document.getElementById('kpi-top-val').innerText = formatCurrency(teams[0].actual);
+            } else {
+                document.getElementById('kpi-top-team').innerText = "-";
+                document.getElementById('kpi-top-val').innerText = "-";
+            }
+
+            // 2. Summary & Chart
+            updateSummary(percent, totalTarget, totalActual);
+            renderMonthlyChart(teams.slice(0, 5)); // Top 5 chart
+
+            // 3. Table
+            renderTable(teams);
+        }
+        
+        function updateSummary(percent, totalTarget, totalActual) {
+            const summaryTitle = document.getElementById('summary-title');
+            const summaryIcon = document.getElementById('summary-icon');
+            const summaryDesc = document.getElementById('summary-desc');
+            const summaryCard = document.getElementById('summary-card');
+
+            if (percent >= 100) {
+                summaryCard.className = "mb-6 p-4 bg-green-50 border border-green-100 rounded-xl";
+                summaryTitle.innerText = "ยอดเยี่ยม (ทะลุเป้า)";
+                summaryTitle.className = "font-bold text-green-800";
+                summaryIcon.className = "w-5 h-5 text-green-600";
+                summaryIcon.setAttribute('data-lucide', 'trophy');
+                summaryDesc.innerText = `ผลงานโดยรวมยอดเยี่ยม ทะลุเป้าหมายไปแล้ว ${formatNum(totalActual - totalTarget)} บาท`;
+            } else if (percent >= 80) {
+                summaryCard.className = "mb-6 p-4 bg-yellow-50 border border-yellow-100 rounded-xl";
+                summaryTitle.innerText = "ใกล้เคียงเป้าหมาย";
+                summaryTitle.className = "font-bold text-yellow-800";
+                summaryIcon.className = "w-5 h-5 text-yellow-600";
+                summaryIcon.setAttribute('data-lucide', 'trending-up');
+                summaryDesc.innerText = `ขาดอีก ${formatNum(totalTarget - totalActual)} บาท จะถึงเป้าหมาย เร่งติดตามทีมที่มีศักยภาพ`;
+            } else {
+                summaryCard.className = "mb-6 p-4 bg-red-50 border border-red-100 rounded-xl";
+                summaryTitle.innerText = "ต่ำกว่าเกณฑ์";
+                summaryTitle.className = "font-bold text-red-800";
+                summaryIcon.className = "w-5 h-5 text-red-600";
+                summaryIcon.setAttribute('data-lucide', 'alert-circle');
+                summaryDesc.innerText = `ผลงานรวมยังห่างจากเป้า ${formatNum(totalTarget - totalActual)} บาท ต้องปรับกลยุทธ์เร่งด่วน`;
+            }
+            lucide.createIcons();
+        }
+
+        function renderMonthlyChart(teams) {
+            const container = document.getElementById('monthly-chart-container');
+            let html = '';
+            
+            if (teams.length === 0) {
+                container.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-400">ไม่พบข้อมูลกราฟ</div>';
+                return;
+            }
+
+            const maxVal = Math.max(...teams.map(t => Math.max(t.target, t.actual)), 1);
+
+            teams.forEach(team => {
+                const hTarget = (team.target / maxVal) * 100;
+                const hActual = (team.actual / maxVal) * 100;
+                const color = team.actual >= team.target ? 'bg-green-500' : 'bg-blue-500';
+
+                html += `
+                <div class="flex flex-col items-center justify-end h-full group min-w-[60px] flex-shrink-0">
+                    <div class="relative w-8 sm:w-12 flex justify-center items-end h-[85%] space-x-1">
+                        <div class="w-1/2 bg-slate-200 rounded-t-sm" style="height: ${hTarget}%" title="เป้า: ${formatNum(team.target)}"></div>
+                        <div class="w-1/2 ${color} rounded-t-sm hover:opacity-80 transition-all" style="height: ${hActual}%" title="จริง: ${formatNum(team.actual)}"></div>
+                    </div>
+                    <div class="h-[15%] flex items-start pt-2 w-full">
+                         <p class="text-[10px] text-slate-500 truncate text-center w-full">${team.name.split(' ')[1] || team.name.substr(0,8)}</p>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderTable(teams) {
+            const tbody = document.getElementById('table-body');
+            let tableHtml = '';
+            
+            teams.forEach((team, index) => {
+                const p = team.target > 0 ? (team.actual / team.target) * 100 : 0;
+                let statusBadge = '';
+                if (p >= 100) statusBadge = `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-bold">เข้าเป้า</span>`;
+                else if (p >= 70) statusBadge = `<span class="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs">ใกล้เคียง</span>`;
+                else statusBadge = `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs">ต่ำกว่า</span>`;
+
+                tableHtml += `
+                    <tr class="hover:bg-blue-50/50 transition-colors border-b border-slate-50 last:border-none">
+                        <td class="p-4 text-sm text-slate-500 font-mono">${index + 1}</td>
+                        <td class="p-4 text-sm font-medium text-slate-900">${team.name} <span class="text-xs text-slate-400 block">${team.branch}</span></td>
+                        <td class="p-4 text-sm text-slate-500 text-right font-mono">${formatNum(team.target)}</td>
+                        <td class="p-4 text-sm text-slate-900 font-semibold text-right font-mono">${formatNum(team.actual)}</td>
+                        <td class="p-4 text-sm text-center font-medium ${p >= 100 ? 'text-green-600' : ''}">${p.toFixed(0)}%</td>
+                        <td class="p-4 text-center">${statusBadge}</td>
+                    </tr>
+                `;
+            });
+
+            if (teams.length === 0) {
+                tableHtml = '<tr><td colspan="6" class="p-8 text-center text-slate-400">ไม่พบข้อมูลในเดือนนี้</td></tr>';
+            }
+            tbody.innerHTML = tableHtml;
+        }
+        
+        function resetUI() {
+            document.getElementById('kpi-fyp').innerText = "-";
+            document.getElementById('kpi-percent').innerText = "-";
+            document.getElementById('kpi-target').innerText = "-";
+            document.getElementById('progress-bar').style.width = "0%";
+            document.getElementById('table-body').innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">...</td></tr>';
+            document.getElementById('monthly-chart-container').innerHTML = '';
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initYearView();
+        });
+
+    </script>
+</body>
+</html>
